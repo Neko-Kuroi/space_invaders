@@ -7,10 +7,10 @@ from random import choice
 from operator import itemgetter, attrgetter
 
 # path
-BASE_PATH = abspath(dirname(__file__))
-FONT_PATH = BASE_PATH + '/fonts/'
-IMAGE_PATH = BASE_PATH + '/images/'
-SOUND_PATH = BASE_PATH + '/sounds/'
+# pygbagではカレントディレクトリからの相対パスを使用
+FONT_PATH = 'fonts/'
+IMAGE_PATH = 'images/'
+SOUND_PATH = 'sounds/'
 
 # RGB
 WHITE = (255, 255, 255)
@@ -215,8 +215,16 @@ class EnemiesGroup(sprite.Group):
     def remove_internal(self, *sprites):
         super(EnemiesGroup, self).remove_internal(*sprites)
         for s in sprites:
-            self.kill(s)
-        self.update_speed()
+            # 敵の配列から削除し、移動範囲を更新
+            if s.row < self.rows and s.column < self.columns:
+                self.enemies[s.row][s.column] = None
+                is_column_dead = self.is_column_dead(s.column)
+                
+                if is_column_dead and s.column in self._aliveColumns:
+                    self._aliveColumns.remove(s.column)
+                
+                if s.column == self._rightAliveColumn:
+                    while self._rightAliveColumn > 0 and is
 
     def is_column_dead(self, column):
         return not any(self.enemies[row][column] for row in range(self.rows))
