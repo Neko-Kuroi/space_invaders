@@ -27,7 +27,8 @@ RED = (237, 28, 36)
 SCREEN = display.set_mode((800, 600),SCALED)
 FONT = FONT_PATH + 'space_invaders.ttf'
 IMG_NAMES = ['ship','shipexplosion1','shipexplosion2','shipexplosion3','mystery',
-            'enemy1_1','enemy1_2',                                            'enemy2_1','enemy2_2',
+            'enemy1_1','enemy1_2',
+            'enemy2_1','enemy2_2',
             'enemy3_1','enemy3_2',
             'explosionblue','explosiongreen','explosionpurple',
             'laser','laser1','enemylaser','enemylaser1']
