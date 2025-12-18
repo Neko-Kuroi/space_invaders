@@ -1,15 +1,19 @@
+#インベーダーゲームの作り方
+## import
 from pygame import *
 import sys
 from os.path import abspath, dirname
 from random import choice
 from operator import itemgetter, attrgetter
 
+## path
 # ファイルへの path
 BASE_PATH = abspath(dirname(__file__))
 FONT_PATH = BASE_PATH + '/fonts/'
 IMAGE_PATH = BASE_PATH + '/images/'
 SOUND_PATH =  BASE_PATH + '/sounds/'
 
+## RGB
 # RGB値を変数 WHITE,GREEN,YELLOW,BLUE,PURPLE,RED へ用意する
 WHITE = (255, 255, 255)
 GREEN = (78, 255, 87)
@@ -17,7 +21,9 @@ YELLOW = (241, 255, 0)
 BLUE = (80, 255, 239)
 PURPLE = (203, 0, 255)
 RED = (237, 28, 36)
+```
 
+## screen , font , images
 # スクリーンのサイズをpygame.Surfaceオブジェクトとして渡す
 SCREEN = display.set_mode((800, 600),SCALED)
 FONT = FONT_PATH + 'space_invaders.ttf'
@@ -29,12 +35,14 @@ IMG_NAMES = ['ship','shipexplosion1','shipexplosion2','shipexplosion3','mystery'
 IMAGES = {name: image.load(IMAGE_PATH + '{}.png'.format(name)).convert_alpha()
         for name in IMG_NAMES}
 
-
+##
 # ポジション初期値
 BLOCKERS_POSITION = 450 # トーチカ
 ENEMY_DEFAULT_POSITION = 65 # ゲームスタートの時のエイリアンの高さ
 ENEMY_MOVE_DOWN = 35 # エイリアンの近づいてくる
 
+
+## 
 ROUND_NUM = 0
 SHIP_VX = 10
 ROW_counter = 4
@@ -68,10 +76,12 @@ class Ship(sprite.Sprite): # player のアイコン
             # キーアップで速度vxをSHIP_VXに戻す　check_input()
         game.screen.blit(self.image, self.rect) # Surfaceオブジェクトにblit
 
+## Bullet
 class Bullet(sprite.Sprite): # 弾
     def __init__(self, xpos, ypos, direction, speed, filename, side):
         sprite.Sprite.__init__(self)
-        self.image = IMAGES[filename]                                                                      self.image2 = IMAGES[filename + '1']
+        self.image = IMAGES[filename]
+        self.image2 = IMAGES[filename + '1']
         self.rect = self.image.get_rect(topleft=(xpos, ypos))
         self.speed = speed
         self.direction = direction
@@ -92,12 +102,14 @@ class Bullet(sprite.Sprite): # 弾
             game.screen.blit(self.image2, self.rect)
             if current_time > self.timer + 160:
                 self.kill() # 画面の下部で弾の表示を消
+
 # 弾の変化
 class bulletExplosion(sprite.Sprite):
     def __init__(self, enemylaser, *groups):
         super(bulletExplosion, self).__init__(*groups)
         self.image = IMAGES['enemylaser1']
-        self.rect = self.image.get_rect(topleft=(enemylaser.rect.x, enemylaser.rect.y))                    self.timer = time.get_ticks()
+        self.rect = self.image.get_rect(topleft=(enemylaser.rect.x, enemylaser.rect.y))
+        self.timer = time.get_ticks()
 
     def update(self, current_time, *args):
         passed = current_time - self.timer
@@ -106,6 +118,7 @@ class bulletExplosion(sprite.Sprite):
         elif 300 < passed:
            self.kill()
 
+## Enemy
 class Enemy(sprite.Sprite): # 敵キャラクター
     def __init__(self, row, column):
         sprite.Sprite.__init__(self)
@@ -140,6 +153,7 @@ class Enemy(sprite.Sprite): # 敵キャラクター
         self.images.append(transform.scale(img1, (40, 35)))
         self.images.append(transform.scale(img2, (40, 35)))
 
+## EnemiesGroup
 class EnemiesGroup(sprite.Group):
     def __init__(self, columns, rows):
         sprite.Group.__init__(self)
@@ -272,7 +286,7 @@ class EnemiesGroup(sprite.Group):
         elif len(self) <= 40: # 敵の数が40になれば、敵の動きが速くなる↑
              self.moveTime = 110
              LEVEL = 400
-#===========================================================================    
+#=============================================================================
 
     def kill(self, enemy):
         self.enemies[enemy.row][enemy.column] = None
@@ -293,6 +307,7 @@ class EnemiesGroup(sprite.Group):
                 self.leftAddMove += 5
                 is_column_dead = self.is_column_dead(self._leftAliveColumn)
 
+## Blocker
 class Blocker(sprite.Sprite):
     def __init__(self, size, color, row, column):
         sprite.Sprite.__init__(self)
@@ -308,6 +323,7 @@ class Blocker(sprite.Sprite):
     def update(self, keys, *args):
         game.screen.blit(self.image, self.rect)
 
+## Mystery
 class Mystery(sprite.Sprite):
     def __init__(self):
         sprite.Sprite.__init__(self)
@@ -349,6 +365,7 @@ class Mystery(sprite.Sprite):
         if passed > self.moveTime and resetTimer:
             self.timer = currentTime
 
+## EnemyExplosion
 class EnemyExplosion(sprite.Sprite):
     def __init__(self, enemy, *groups):
         super(EnemyExplosion, self).__init__(*groups)
@@ -423,7 +440,7 @@ class Life(sprite.Sprite):
 
     def update(self, *args):
         game.screen.blit(self.image, self.rect)
-
+                
 class Text(object):
     def __init__(self, textFont, size, message, color, xpos, ypos):
         self.font = font.Font(textFont, size)
@@ -834,6 +851,7 @@ class SpaceInvaders(object):
             display.update()
             self.clock.tick(60)
 
+## main loop
 if __name__ == '__main__':
     game = SpaceInvaders()
     game.main()
