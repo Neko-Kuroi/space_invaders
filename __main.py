@@ -2,10 +2,12 @@
 import asyncio
 from pygame import *
 import sys
+from os.path import abspath, dirname
 from random import choice
-from operator import attrgetter
+from operator import itemgetter, attrgetter
 
-# path - pygbagではカレントディレクトリからの相対パス
+# path
+# pygbagではカレントディレクトリからの相対パスを使用
 FONT_PATH = 'fonts/'
 IMAGE_PATH = 'images/'
 SOUND_PATH = 'sounds/'
@@ -22,7 +24,9 @@ RED = (237, 28, 36)
 SCREEN = display.set_mode((800, 600), SCALED)
 FONT = FONT_PATH + 'space_invaders.ttf'
 IMG_NAMES = ['ship', 'shipexplosion1', 'shipexplosion2', 'shipexplosion3', 'mystery',
-            'enemy1_1', 'enemy1_2', 'enemy2_1', 'enemy2_2', 'enemy3_1', 'enemy3_2',
+            'enemy1_1', 'enemy1_2',
+            'enemy2_1', 'enemy2_2',
+            'enemy3_1', 'enemy3_2',
             'explosionblue', 'explosiongreen', 'explosionpurple',
             'laser', 'laser1', 'enemylaser', 'enemylaser1']
 IMAGES = {name: image.load(IMAGE_PATH + '{}.png'.format(name)).convert_alpha()
@@ -211,6 +215,7 @@ class EnemiesGroup(sprite.Group):
     def remove_internal(self, *sprites):
         super(EnemiesGroup, self).remove_internal(*sprites)
         for s in sprites:
+            # 敵の配列から削除し、移動範囲を更新
             if s.row < self.rows and s.column < self.columns:
                 self.enemies[s.row][s.column] = None
                 is_column_dead = self.is_column_dead(s.column)
@@ -219,32 +224,18 @@ class EnemiesGroup(sprite.Group):
                     self._aliveColumns.remove(s.column)
                 
                 if s.column == self._rightAliveColumn:
-                    while self._rightAliveColumn > 0 and is_column_dead:
-                        self._rightAliveColumn -= 1
-                        self.rightAddMove += 5
-                        is_column_dead = self.is_column_dead(self._rightAliveColumn)
-                elif s.column == self._leftAliveColumn:
-                    while self._leftAliveColumn < self.columns and is_column_dead:
-                        self._leftAliveColumn += 1
-                        self.leftAddMove += 5
-                        is_column_dead = self.is_column_dead(self._leftAliveColumn)
-        self.update_speed()
+                    while self._rightAliveColumn > 0 and is
 
     def is_column_dead(self, column):
         return not any(self.enemies[row][column] for row in range(self.rows))
 
     def random_bottom(self):
-        if not self._aliveColumns:
-            return None
         col = choice(self._aliveColumns)
         col_enemies = (self.enemies[row - 1][col] for row in range(self.rows, 0, -1))
         return next((en for en in col_enemies if en is not None), None)
 
     def update_speed(self):
         global LEVEL
-        if len(self) == 0:
-            return
-            
         minimum = 5
         maxmum = 0
         for l in self:
@@ -253,8 +244,8 @@ class EnemiesGroup(sprite.Group):
                 minimum = compRow
             if compRow > maxmum:
                 maxmum = compRow
-        self.minRow = minimum
-        self.maxRow = maxmum
+            self.minRow = minimum
+            self.maxRow = maxmum
 
         if len(self) == 1:
             self.moveTime = 2
@@ -276,6 +267,24 @@ class EnemiesGroup(sprite.Group):
         elif len(self) <= 40:
             self.moveTime = 110
             LEVEL = 400
+
+    def kill(self, enemy):
+        self.enemies[enemy.row][enemy.column] = None
+        is_column_dead = self.is_column_dead(enemy.column)
+
+        if is_column_dead:
+            self._aliveColumns.remove(enemy.column)
+
+        if enemy.column == self._rightAliveColumn:
+            while self._rightAliveColumn > 0 and is_column_dead:
+                self._rightAliveColumn -= 1
+                self.rightAddMove += 5
+                is_column_dead = self.is_column_dead(self._rightAliveColumn)
+        elif enemy.column == self._leftAliveColumn:
+            while self._leftAliveColumn < self.columns and is_column_dead:
+                self._leftAliveColumn += 1
+                self.leftAddMove += 5
+                is_column_dead = self.is_column_dead(self._leftAliveColumn)
 
 class Blocker(sprite.Sprite):
     def __init__(self, size, color, row, column):
@@ -492,13 +501,13 @@ class SpaceInvaders(object):
                          [1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1]]
         blockerGroup = sprite.Group()
         row = 0
-        for b_row in barrierDesign:
+        for b in barrierDesign:
             column = 0
-            for b_element in b_row:
-                if b_element != 0:
+            for b in b:
+                if b != 0:
                     blocker = Blocker(3, RED, row, column)
                     blocker.rect.x = 60 + (200 * number) + (column * blocker.width)
-                    blocker.rect.y = BLOCKERS_POSITION + 25 + (row * blocker.height)
+                    blocker.rect.y = BLOCKERS_POSITION + 25 + (row * (blocker.height))
                     blockerGroup.add(blocker)
                 column += 1
             row += 1
@@ -508,6 +517,7 @@ class SpaceInvaders(object):
             blocker.rect.y = 595
             blockerGroup.add(blocker)
             column += 1
+            row += 1
         return blockerGroup
 
     def set4Blocker(self):
@@ -525,6 +535,7 @@ class SpaceInvaders(object):
         self.musicNotes = [mixer.Sound(SOUND_PATH + '{}.wav'.format(i)) for i in range(4)]
         for sound in self.musicNotes:
             sound.set_volume(0.1)
+
         self.noteIndex = 0
 
     def play_main_music(self, currentTime):
@@ -545,7 +556,7 @@ class SpaceInvaders(object):
         self.keys = key.get_pressed()
         for e in event.get():
             if self.should_exit(e):
-                return True
+                sys.exit()
             if e.type == KEYDOWN:
                 if e.key == K_s:
                     if len(self.bullets) == 0 and self.shipAlive:
@@ -557,29 +568,33 @@ class SpaceInvaders(object):
                         elif 1990 <= self.score < 3500:
                             leftbullet = Bullet(self.player.rect.x + 8, self.player.rect.y + 5, -1, 15, 'laser', 'left')
                             rightbullet = Bullet(self.player.rect.x + 38, self.player.rect.y + 5, -1, 15, 'laser', 'right')
-                            self.bullets.add(leftbullet, rightbullet)
+                            self.bullets.add(leftbullet)
+                            self.bullets.add(rightbullet)
                             self.allSprites.add(self.bullets)
                             self.sounds['shoot2'].play()
                         elif 3500 <= self.score:
                             bullet = Bullet(self.player.rect.x + 23, self.player.rect.y + 5, -1, 15, 'laser', 'center')
+                            self.bullets.add(bullet)
                             leftbullet = Bullet(self.player.rect.x + 8, self.player.rect.y + 5, -1, 15, 'laser', 'left')
                             rightbullet = Bullet(self.player.rect.x + 38, self.player.rect.y + 5, -1, 15, 'laser', 'right')
-                            self.bullets.add(bullet, leftbullet, rightbullet)
+                            self.bullets.add(leftbullet)
+                            self.bullets.add(rightbullet)
                             self.allSprites.add(self.bullets)
                             self.sounds['shoot2'].play()
 
                     if ROUND_NUM >= 6 and self.shipAlive:
                         bullet = Bullet(self.player.rect.x + 23, self.player.rect.y + 5, -1, 15, 'laser', 'center')
+                        self.bullets.add(bullet)
                         leftbullet = Bullet(self.player.rect.x + 8, self.player.rect.y + 5, -1, 15, 'laser', 'left')
                         rightbullet = Bullet(self.player.rect.x + 38, self.player.rect.y + 5, -1, 15, 'laser', 'right')
-                        self.bullets.add(bullet, leftbullet, rightbullet)
+                        self.bullets.add(leftbullet)
+                        self.bullets.add(rightbullet)
                         self.allSprites.add(self.bullets)
                         self.sounds['shoot2'].play()
 
             if e.type == KEYUP:
-                if e.key == K_d or e.key == K_a:
+                if e.key == K_d or K_a:
                     self.player.vx = SHIP_VX
-        return False
 
     def make_enemies(self):
         enemies = EnemiesGroup(10, 5)
@@ -594,10 +609,9 @@ class SpaceInvaders(object):
     def make_enemies_shoot(self):
         if (time.get_ticks() - self.timer) > LEVEL and self.enemies:
             enemy = self.enemies.random_bottom()
-            if enemy:
-                self.enemyBullets.add(Bullet(enemy.rect.x + 14, enemy.rect.y + 20, 1, 5, 'enemylaser', 'center'))
-                self.allSprites.add(self.enemyBullets)
-                self.timer = time.get_ticks()
+            self.enemyBullets.add(Bullet(enemy.rect.x + 14, enemy.rect.y + 20, 1, 5, 'enemylaser', 'center'))
+            self.allSprites.add(self.enemyBullets)
+            self.timer = time.get_ticks()
 
     def calculate_score(self, row):
         scores = {0: 30, 1: 20, 2: 20, 3: 10, 4: 10, 5: choice([50, 100, 150, 300])}
@@ -699,8 +713,7 @@ class SpaceInvaders(object):
 
         for e in event.get():
             if self.should_exit(e):
-                return True
-        return False
+                sys.exit()
 
     async def main(self):
         while True:
@@ -713,7 +726,7 @@ class SpaceInvaders(object):
                 self.enemy3Text.draw(self.screen)
                 self.enemy4Text.draw(self.screen)
                 self.create_main_menu()
-
+                
                 for e in event.get():
                     if self.should_exit(e):
                         return
@@ -738,8 +751,7 @@ class SpaceInvaders(object):
                         self.roundText.draw(self.screen)
                         self.livesText.draw(self.screen)
                         self.livesGroup.update()
-                        if self.check_input():
-                            return
+                        self.check_input()
                     if currentTime - self.gameTimer > 3000:
                         ROUND_NUM += 1
                         self.set4Blocker()
@@ -757,8 +769,7 @@ class SpaceInvaders(object):
                     self.scoreText.draw(self.screen)
                     self.scoreText2.draw(self.screen)
                     self.livesText.draw(self.screen)
-                    if self.check_input():
-                        return
+                    self.check_input()
                     self.enemies.update(currentTime)
                     self.allSprites.update(self.keys, currentTime)
                     self.explosionsGroup.update(currentTime)
@@ -769,11 +780,10 @@ class SpaceInvaders(object):
             elif self.gameOver:
                 currentTime = time.get_ticks()
                 self.enemyPosition = ENEMY_DEFAULT_POSITION
-                if self.create_game_over(currentTime):
-                    return
+                self.create_game_over(currentTime)
                 global ROUND_NUM
                 ROUND_NUM = 0
-
+                
             display.update()
             await asyncio.sleep(0)
             self.clock.tick(60)
