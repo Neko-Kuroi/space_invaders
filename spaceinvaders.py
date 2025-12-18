@@ -21,7 +21,6 @@ YELLOW = (241, 255, 0)
 BLUE = (80, 255, 239)
 PURPLE = (203, 0, 255)
 RED = (237, 28, 36)
-```
 
 ## screen , font , images
 # スクリーンのサイズをpygame.Surfaceオブジェクトとして渡す
@@ -64,12 +63,14 @@ class Ship(sprite.Sprite): # player のアイコン
             # self.rect.x -= self.speed # 左移動
             self.vx += self.speed
             self.dist_x = (self.rect.x - self.vx)
-            self.rect.x += (-(-(self.dist_x - self.rect.x))//3)                                                                                                                                                   if self.rect.x < 10: # 画面左端まできたら止まる
+            self.rect.x += (-(-(self.dist_x - self.rect.x))//3)                                                                                                                                                   
+            if self.rect.x < 10: # 画面左端まできたら止まる
                 self.rect.x = 10
             # キーアップで速度vxをSHIP_VXに戻す check_input()
         if keys[K_d] and self.rect.x < 740:
             # self.rect.x += self.speed # 右移動
-            self.vx += self.speed                                                                                                                                                                                 self.dist_x = (self.rect.x + self.vx)
+            self.vx += self.speed                                                                                                                                                                                 
+            self.dist_x = (self.rect.x + self.vx)
             self.rect.x += (-(-(self.dist_x - self.rect.x))//3)
             if self.rect.x > 740: # 画面右端まできたら止まる
                 self.rect.x = 740
@@ -92,7 +93,8 @@ class Bullet(sprite.Sprite): # 弾
         game.screen.blit(self.image, self.rect)
         self.rect.y += self.speed * self.direction
         current_time = time.get_ticks()
-                                                                                                                                                                                                              if self.rect.y < 35:                                                                                   self.rect.y = 35
+        if self.rect.y < 35:
+            self.rect.y = 35
             game.screen.blit(self.image2, self.rect)
             if current_time > self.timer + 700:
                 self.kill() # 画面の上部で弾の表示を消す
