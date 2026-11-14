@@ -249,6 +249,8 @@ class EnemiesGroup(sprite.Group):
                         for row in range(self.rows))
 
     def random_bottom(self):
+        if not self._aliveColumns:
+            return None
         col = choice(self._aliveColumns)
         col_enemies = (self.enemies[row - 1][col]
                         for row in range(self.rows, 0, -1))
@@ -257,16 +259,18 @@ class EnemiesGroup(sprite.Group):
     def update_speed(self):
         # 敵の数が減れば段階的にスピードアップする
         global LEVEL
+        if len(self) == 0:
+            return
         minimum = 5
         maxmum = 0
         for l in self:
-            compRow = l.row    
+            compRow = l.row
             if compRow < minimum:
-                minimum = compRow            
+                minimum = compRow
             if compRow > maxmum:
                 maxmum = compRow
-            self.minRow = minimum
-            self.maxRow = maxmum
+        self.minRow = minimum
+        self.maxRow = maxmum
 
         if len(self) == 1: # 敵の数が１になれば、敵の動きがすごく速くなる
             self.moveTime = 2
@@ -455,6 +459,12 @@ class Text(object):
 
 class SpaceInvaders(object):
     def __init__(self):
+        # 各クラスが全域の game 経由で画面や敵の初期位置を参照するため、
+        # 生成した自分自身を game として登録する。これが無いと、スクリプト
+        # として実行した場合にしか動かず、import して使うと reset() で
+        # NameError になる。
+        global game
+        game = self
 
         mixer.pre_init(44100, -16, 1, 4096)
         init()
@@ -465,6 +475,7 @@ class SpaceInvaders(object):
         self.startGame = False
         self.mainScreen = True
         self.gameOver = False
+        self.gameOverTimer = None
 
         self.enemyPosition = ENEMY_DEFAULT_POSITION
         self.titleText = Text(FONT, 50, 'Space Invaders', WHITE, 164, 155)
@@ -506,6 +517,7 @@ class SpaceInvaders(object):
         self.timer = time.get_ticks()
         self.noteTimer = time.get_ticks()
         self.shipTimer = time.get_ticks()
+        self.gameOverTimer = None
         self.score = score
         self.create_audio()
         self.makeNewShip = False
@@ -642,7 +654,7 @@ class SpaceInvaders(object):
                         self.sounds['shoot2'].play()
 
             if e.type == KEYUP:
-                if e.key == K_d or K_a:# キーアップでplayerの横移動の加速速度vxを初期値に戻す
+                if e.key == K_d or e.key == K_a:# キーアップでplayerの横移動の加速速度vxを初期値に戻す
                     self.player.vx = SHIP_VX
 
 
@@ -660,9 +672,10 @@ class SpaceInvaders(object):
     def make_enemies_shoot(self):
         if (time.get_ticks() - self.timer) > LEVEL and self.enemies:
             enemy = self.enemies.random_bottom()
-            self.enemyBullets.add(Bullet(enemy.rect.x + 14, enemy.rect.y + 20, 1, 5, 'enemylaser', 'center'))
-            self.allSprites.add(self.enemyBullets)
-            self.timer = time.get_ticks()
+            if enemy:
+                self.enemyBullets.add(Bullet(enemy.rect.x + 14, enemy.rect.y + 20, 1, 5, 'enemylaser', 'center'))
+                self.allSprites.add(self.enemyBullets)
+                self.timer = time.get_ticks()
 
     def calculate_score(self, row):
         scores = {0: 30, 1: 20,2: 20, 3: 10, 4: 10, 5: choice([50, 100, 150, 300])}
@@ -713,6 +726,7 @@ class SpaceInvaders(object):
                 self.life1.kill()
             else:
                 self.gameOver = True
+                self.gameOverTimer = time.get_ticks()
                 self.startGame = False
 
             self.makeNewShip = True
@@ -724,6 +738,7 @@ class SpaceInvaders(object):
 
             if not self.player.alive() or self.enemies.bottom >= 600:
                 self.gameOver = True
+                self.gameOverTimer = time.get_ticks()
                 self.startGame = False
 
         sprite.groupcollide(self.bullets, self.allBlockers, True, True)
@@ -746,7 +761,10 @@ class SpaceInvaders(object):
     def create_game_over(self, currentTime):
 
         # ゲームオーバーの文字を点滅
-        passed = currentTime - self.timer
+        # 経過時間の基準は、敵の射撃と共用だった self.timer ではなく、
+        # ゲームオーバーになった瞬間に記録した gameOverTimer を使う。
+        base = self.gameOverTimer if self.gameOverTimer is not None else self.timer
+        passed = currentTime - base
         if 900 < passed < 1000:
             self.gameOverText0.draw(self.screen)
         elif 1000 < passed < 1100:

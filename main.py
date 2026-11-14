@@ -419,6 +419,10 @@ class Text(object):
 
 class SpaceInvaders(object):
     def __init__(self):
+        # 各クラスが全域の game 経由で参照するため、自分自身を登録する
+        # （原典 spaceinvaders.py の F-4 と同じ手当て）。
+        global game
+        game = self
         mixer.pre_init(44100, -16, 1, 4096)
         init()
         self.clock = time.Clock()
@@ -428,6 +432,7 @@ class SpaceInvaders(object):
         self.startGame = False
         self.mainScreen = True
         self.gameOver = False
+        self.gameOverTimer = None
 
         self.enemyPosition = ENEMY_DEFAULT_POSITION
         self.titleText = Text(FONT, 50, 'Space Invaders', WHITE, 164, 155)
@@ -468,6 +473,7 @@ class SpaceInvaders(object):
         self.timer = time.get_ticks()
         self.noteTimer = time.get_ticks()
         self.shipTimer = time.get_ticks()
+        self.gameOverTimer = None
         self.score = score
         self.create_audio()
         self.makeNewShip = False
@@ -648,6 +654,7 @@ class SpaceInvaders(object):
                 self.life1.kill()
             else:
                 self.gameOver = True
+                self.gameOverTimer = time.get_ticks()
                 self.startGame = False
 
             self.makeNewShip = True
@@ -658,6 +665,7 @@ class SpaceInvaders(object):
             sprite.groupcollide(self.enemies, self.playerGroup, True, True)
             if not self.player.alive() or self.enemies.bottom >= 600:
                 self.gameOver = True
+                self.gameOverTimer = time.get_ticks()
                 self.startGame = False
 
         sprite.groupcollide(self.bullets, self.allBlockers, True, True)
@@ -677,7 +685,11 @@ class SpaceInvaders(object):
             self.shipAlive = True
 
     def create_game_over(self, currentTime):
-        passed = currentTime - self.timer
+        # 経過時間の基準は、敵の射撃と共用だった self.timer ではなく、
+        # ゲームオーバーになった瞬間に記録した gameOverTimer を使う
+        # （原典 spaceinvaders.py の F-5 と同じ直し）。
+        base = self.gameOverTimer if self.gameOverTimer is not None else self.timer
+        passed = currentTime - base
         if 900 < passed < 1000:
             self.gameOverText0.draw(self.screen)
         elif 1000 < passed < 1100:
@@ -771,7 +783,6 @@ class SpaceInvaders(object):
                 self.enemyPosition = ENEMY_DEFAULT_POSITION
                 if self.create_game_over(currentTime):
                     return
-                global ROUND_NUM
                 ROUND_NUM = 0
 
             display.update()

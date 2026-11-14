@@ -39,7 +39,6 @@ game = State()
 
 # --- オブジェクト管理 ---
 ship = Actor('ship', (400, 540))
-ship.scale = 1.0
 bullets = []
 enemy_bullets = []
 enemies = []
@@ -50,7 +49,6 @@ mystery_ship = None
 # 敵グループの移動制御
 enemy_data = {
     'direction': 1,
-    'move_count': 0,
     'last_move': 0,
     'last_shot': 0
 }
@@ -63,7 +61,6 @@ def init_level():
     enemy_bullets.clear()
     explosions.clear()
     
-    enemy_data['move_count'] = 0
     enemy_data['direction'] = 1
     enemy_data['last_move'] = 0
     enemy_data['last_shot'] = 0
@@ -71,12 +68,14 @@ def init_level():
     # 敵を配置
     for row in range(5):
         for col in range(10):
-            if row == 0: 
-                img = 'enemy1_1'
-            elif row in [1, 2]: 
-                img = 'enemy2_1'
-            else: 
-                img = 'enemy3_1'
+            # pgzero の Actor は scale を解釈しないため、最初から
+            # 40x35 に縮小した画像（*_40）を使う
+            if row == 0:
+                img = 'enemy1_1_40'
+            elif row in [1, 2]:
+                img = 'enemy2_1_40'
+            else:
+                img = 'enemy3_1_40'
             
             enemy = Actor(img)
             enemy.row = row
@@ -94,8 +93,8 @@ def update_lives_icons():
     """残機アイコンの更新"""
     lives_icons.clear()
     for i in range(game.lives):
-        icon = Actor('ship', (715 + (i * 27), 15))
-        icon.scale = 0.5
+        # 23x23 に縮小済みの画像を使う（Actor の scale は効かないため）
+        icon = Actor('ship_23', (715 + (i * 27), 15))
         lives_icons.append(icon)
 
 def schedule_mystery_ship():
@@ -108,7 +107,7 @@ def spawn_mystery_ship():
     """ミステリーシップの生成"""
     global mystery_ship
     if game.status == "PLAYING" and mystery_ship is None:
-        mystery_ship = Actor('mystery', (-80, 45))
+        mystery_ship = Actor('mystery_80', (-80, 45))
         mystery_ship.direction = 1
         mystery_ship.speed = 2
         sounds.mysteryentered.play()
@@ -138,11 +137,10 @@ def draw_menu():
     screen.draw.text("= ??? pts", (450, 470), fontsize=25, color="red")
     
     # サンプル敵を描画
-    Actor('enemy1_1', (400, 330)).draw()
-    Actor('enemy2_1', (400, 380)).draw()
-    Actor('enemy3_1', (400, 430)).draw()
-    mystery_sample = Actor('mystery', (380, 480))
-    mystery_sample.scale = 0.8
+    Actor('enemy1_1_40', (400, 330)).draw()
+    Actor('enemy2_1_40', (400, 380)).draw()
+    Actor('enemy3_1_40', (400, 430)).draw()
+    mystery_sample = Actor('mystery_80', (380, 480))
     mystery_sample.draw()
     
     if game.high_score > 0:
@@ -280,31 +278,34 @@ def update_enemies(dt):
     
     if enemy_data['last_move'] > move_interval:
         enemy_data['last_move'] = 0
+
+        # 方向転換判定は、移動回数の決め打ちではなく集団の端で見る。
+        # 以前は30回×10pxで右端が画面外まで出てしまっていた。
+        # 敵画像は 40x35 に縮小済みなので、中心からの半幅は 20。
         do_move_down = False
-        
-        # 方向転換判定
-        if enemy_data['move_count'] >= 30:
+        if enemies:
+            half = 20
+            if enemy_data['direction'] == 1 and max(e.x for e in enemies) + half + 10 > WIDTH - 10:
+                do_move_down = True
+            elif enemy_data['direction'] == -1 and min(e.x for e in enemies) - half - 10 < 10:
+                do_move_down = True
+        if do_move_down:
             enemy_data['direction'] *= -1
-            enemy_data['move_count'] = 0
-            do_move_down = True
-        
+
         for e in enemies:
             if do_move_down:
                 e.y += ENEMY_MOVE_DOWN
             else:
                 e.x += 10 * enemy_data['direction']
-            
+
             # アニメーション切り替え
             e.frame = 2 if e.frame == 1 else 1
-            e.image = f"enemy{get_enemy_type(e.row)}_{e.frame}"
-            
+            e.image = f"enemy{get_enemy_type(e.row)}_{e.frame}_40"
+
             # 敗北条件：下まで到達
             if e.y >= 540:
                 game.status = "GAMEOVER"
                 sounds.shipexplosion.play()
-
-        if not do_move_down:
-            enemy_data['move_count'] += 1
 
 def update_enemy_shooting(dt):
     """敵の射撃"""
@@ -315,7 +316,13 @@ def update_enemy_shooting(dt):
     
     if enemy_data['last_shot'] > shot_interval and enemies:
         enemy_data['last_shot'] = 0
-        shooter = choice(enemies)
+        # 原典と同じく、射手は「どれかの列の一番下の敵」から選ぶ
+        # （以前は全敵から無作為で、弾が他の敵をすり抜けて出ていた）
+        columns = {}
+        for e in enemies:
+            columns.setdefault(e.col, []).append(e)
+        bottom_enemies = [max(col, key=lambda e: e.y) for col in columns.values()]
+        shooter = choice(bottom_enemies)
         eb = Actor('enemylaser', (shooter.x, shooter.y + 20))
         enemy_bullets.append(eb)
 
@@ -337,8 +344,11 @@ def on_key_down(key):
     if game.status == "MENU":
         if key == keys.SPACE:
             game.reset_all()
-            init_level()
+            # init_level の中で出現予約が「PLAYING のときだけ」と
+            # 判定されるため、状態を先に PLAYING へ変えておく
+            # （以前は順番が逆で、初回のミステリーシップが出なかった）
             game.status = "PLAYING"
+            init_level()
             
     elif game.status == "GAMEOVER":
         if key == keys.SPACE:
@@ -411,7 +421,9 @@ def handle_ship_death():
 
 def add_explosion(x, y, color):
     """爆発エフェクトの追加"""
-    ex = Actor(f'explosion{color}', (x, y))
+    # 縮小済みの爆発画像を使う。'red' は explosionred_40 を新規に用意した
+    # （以前は explosionred という無い画像を読みに行って落ちていた）
+    ex = Actor(f'explosion{color}_40', (x, y))
     ex.timer = 0.4
     explosions.append(ex)
 
@@ -438,10 +450,11 @@ def respawn_ship():
 def start_next_round():
     """次のラウンド開始"""
     game.round += 1
+    # 出現予約が効くよう、init_level の前に PLAYING へしておく
+    game.status = "PLAYING"
     init_level()
     ship.pos = (400, 540)
     game.invincible_timer = 2.0
-    game.status = "PLAYING"
 
 # --- ゲーム開始 ---
 pgzrun.go()
