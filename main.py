@@ -198,7 +198,10 @@ class EnemiesGroup(sprite.Group):
                     self.moveNumber += 1
                 else:
                     ROW_counter -= 1
-                    if ROW_counter == self.minRow - 1:
+                    # 一致判定だけだと、上の行が全滅して minRow が上がったときに
+                    # カウンタが条件を飛び越え、敵集団が止まってしまう。
+                    # 以下になったら包み直す（<= に変更）。原典の修正と同一。
+                    if ROW_counter <= self.minRow - 1:
                         ROW_counter = self.maxRow
                         self.moveNumber += 1
             self.timer += self.moveTime
@@ -459,6 +462,11 @@ class SpaceInvaders(object):
         self.livesGroup = sprite.Group(self.life1, self.life2, self.life3)
 
     def reset(self, score):
+        # ROW_counter はモジュール全域のままなので、ここで初期値に戻す。
+        # 戻さないと、進みすぎたカウンタが次のゲームにも持ち越される。
+        # 原典の修正と同一。
+        global ROW_counter
+        ROW_counter = 4
         self.player = Ship()
         self.playerGroup = sprite.Group(self.player)
         self.explosionsGroup = sprite.Group()
